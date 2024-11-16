@@ -1,0 +1,144 @@
+<!doctype html>
+<html>
+
+<head>
+    <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+    <script>
+        function breakKeys(qtdKeys) {
+            keys = [];
+
+            const maxKeys = 0xffffffff;
+            const split = Math.round(maxKeys / qtdKeys);
+            for (i = 0; i < qtdKeys; ++i) {
+                keys.push([split * i + (i ? 1 : 0), Math.min(split * (i + 1), maxKeys)]);
+                console.log(keys[i]);
+            }
+
+            return keys;
+        }
+
+        function getData() {
+            let data = {};
+            let frames = [];
+            for (let i = 1; i < 4; ++i) {
+                const val = document.getElementById("frame_" + i).value.trim()
+                if (val.length != 0) {
+                    frames.push(val);
+                }
+            }
+            data["frames"] = frames; //frames
+            data["meter"] = document.getElementById("meter").value; //meter
+            data["consumptionMin"] = 1;
+            data["consumptionMax"] = 1000000;
+            date = new Date(document.getElementById("date").value);
+            data["valid_year"] = Number(date.getYear().toString().substr(-2));
+            data["valid_month"] = date.getMonth() + 1;
+            data["valid_day"] = date.getDate();
+
+            return data;
+        }
+
+        function search() {
+            const qtdThreads = document.getElementById("threads").value;
+            const keys = breakKeys(qtdThreads);
+            const maxKeys = 0xffffffff;
+            progress = 0.0;
+            document.getElementById("results").innerHTML = "";
+            document.getElementById("start").disabled = true;
+            //console.log("Start with " + qtdThreads + " threads: " + new Date().toLocaleString());
+            for (t = 0; t < qtdThreads; ++t) {
+                const worker = new Worker('search.js', { type: "module" });
+                let data = getData();
+                data["startKey"] = keys[t][0];
+                data["endKey"] = keys[t][1];
+                worker.postMessage(data);
+                worker.onmessage = function (e) {
+                    if (typeof e.data === "number") {
+                        progress += e.data / maxKeys * 100.0;
+                        document.getElementById("progress").style.width = Math.round(progress) + "%";
+                        document.getElementById("progress").innerHTML = Math.round(progress) + "%";
+                        if (progress >= 100) {
+                            progress = 100;
+                            document.getElementById("progress").style.width = progress + "%";
+                            document.getElementById("progress").innerHTML = Math.round(progress) + "%";
+                            //console.log("End with " + qtdThreads + " threads: " + new Date().toLocaleString());
+                            document.getElementById("start").disabled = false;
+                        }
+                    } else {
+                        document.getElementById("results").innerHTML += `Key: <b>${e.data.key}</b><br>`;
+                        document.getElementById("results").innerHTML += `Total Consumption: <b>${e.data.totalConsumption}</b><br>`;
+                        document.getElementById("results").innerHTML += `Last Month Total Consumption: <b>${e.data.lastMonthTotalConsumption}</b><br>`;
+                        document.getElementById("results").innerHTML += `Date: <b>${e.data.date}</b><br><br>`;
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        form {
+            overflow: hidden;
+        }
+
+        label {
+            float: left;
+            width: 200px;
+            padding-right: 24px;
+        }
+
+        input {
+            float: left;
+            width: calc(100% - 200px);
+        }
+
+        button {
+            float: right;
+            width: calc(100% - 200px);
+        }
+
+        select {
+            float: right;
+            width: calc(100% - 200px);
+        }
+    </style>
+</head>
+
+<body>
+    <div style="width:30%">
+        <form>
+            <h1>Key Search</h1>
+            <label>Meter:</label>
+            <select id="meter">
+                <option value="izar">izar</option>
+                <option value="janz">janz</option>
+            </select>
+            <br>
+            <label>Frame #1:</label>
+            <input id="frame_1" type="text">
+            <br>
+            <label>Frame #2:</label>
+            <input id="frame_2" type="text">
+            <br>
+            <label>Frame #3:</label>
+            <input id="frame_3" type="text">
+            <br>
+            <label>Date:</label>
+            <input id="date" type="date">
+            <br>
+            <label>Threads:</label>
+            <input id="threads" type="number" value="4" min="1" max="32">
+            <br>
+            <button onclick="search()" type="button" id="start">Start</button>
+            <br><br><br>
+            <!-- Searching Keys: <progress id="progress" value="0" max="100"></progress> -->
+            Searching Keys:<br>
+            <div class="w3-light-grey">
+                <div id="progress" class="w3-container w3-blue w3-round" style="width:0%">0%</div>
+            </div>
+            <hr>
+            <!-- <textarea id="results" rows="10" cols="60"></textarea> -->
+            <div id="results"></div>
+        </form>
+    </div>
+</body>
+
+</html>
